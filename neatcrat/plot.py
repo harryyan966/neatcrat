@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 from .utils import Angle
 from .scene import Scene
 from .constants import SCENE_LENGTH
+from .agentfinder import AgentFinder
 
 class Plot:
     def __init__(self, xmin, xmax, ymin, ymax, sz=6):
@@ -100,7 +101,7 @@ class Plot:
 
         # delta x and y, used to draw the arrow
         # dx = agent.vx
-        # dy = agent.vy #TODO FORMALIZE
+        # dy = agent.vy
         dx = 15 * Angle.cos(agent.yaw)
         dy = 15 * Angle.sin(agent.yaw)
 
@@ -146,7 +147,7 @@ class Plot:
 
             # draw normal vehicles as light blue
             else:
-                if agent.is_in_front_of(next(x for x in agents if x.id == 'ego')): # TODO FORMALIZE
+                if agent.is_in_front_of(next(x for x in agents if x.id == 'ego')): # agent is in front of ego
                     self.draw_agent(agent, '#1c99ec')
                 else:
                     self.draw_agent(agent, '#2bc793')
@@ -173,15 +174,52 @@ class Plot:
         return ani
     
 
+    def draw_scene_with_ego_traj(self, scene: Scene, start_ti=0, end_ti=SCENE_LENGTH, traj_length=40, firm_traj_length=0):
+
+        finder = AgentFinder(scene)
+
+        def update(dti):
+            self.redraw_canvas()
+
+            ti = start_ti + dti
+
+            snapshot = scene.snapshot(ti)
+            
+            # draw trajectory from current ego to last known ego anchor
+            self.draw_trajectory(scene.trajectories['ego'], ti, min(ti+traj_length, SCENE_LENGTH), color='#37d065')
+
+            # draw trajectory from first unknown ego anchor to last needed anchor
+            if ti+traj_length > SCENE_LENGTH:
+                self.draw_trajectory(scene.trajectories['ego'], SCENE_LENGTH, ti+traj_length, color='#fd842e')
+
+            # draw trajectory from current ego to last "firm" ego anchor
+            self.draw_trajectory(scene.trajectories['ego'], ti, ti+firm_traj_length, color='#447343')
+
+            # draw the other agents
+            self.draw_snapshot(snapshot)
+
+            # mark the front agent as purple
+            front = finder.get_front(ti)
+            if front is not None:
+                self.draw_agent(front, color='purple')
+            
+        # Create the animation
+        ani = FuncAnimation(
+            self.fig, update, frames=end_ti-start_ti, interval=200
+        )
+
+        return ani
+    
+
     def draw_trajectories(self, trajectories, start_ti=0, end_ti=SCENE_LENGTH):
 
         def update(ti):
             self.redraw_canvas()
 
             # add everything in this timestamp index to the snapshot
-            snapshot = set()
+            snapshot = []
             for trajectory in trajectories:
-                snapshot.add(trajectory[start_ti+ti])
+                snapshot.append(trajectory[start_ti+ti])
 
             self.draw_snapshot(snapshot)
             

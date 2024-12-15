@@ -31,12 +31,11 @@ class Coords:
 
 
 class Numbers:
-    def weighted_avg(xs, weight_decay = 0.8):
+    def weighted_avg(xs, weight_decay = 1):
         w = 1
         weight_sum = 0
         weighted_sum = 0
-        for i in range(len(xs)):
-            x = xs[i]
+        for x in xs:
             weighted_sum += w * x
             weight_sum += w
             w *= weight_decay

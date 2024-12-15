@@ -5,171 +5,309 @@ Classifies scene
 import numpy as np
 
 from .agent import Agent
+from .agentfinder import AgentFinder
 from .constants import *
 from .scene import Scene
 
 class SceneClassifier:
+    # inlane
+    SMALL_VELOCITY_THRESHOLD = 3
+
+    # inlane
+    DV_THRESHOLD_FOR_ACCELERATION = 2
+    DV_THRESHOLD_FOR_DECELERATION = -2
+
+    # inlane
+    CUTOUT_BACKWARD_DELTA = 1
+    CUTOUT_FORWARD_DELTA = 2
+    CUTIN_BACKWARD_DELTA = 1
+    CUTIN_FORWARD_DELTA = 4
+
+    # wait
+    PEDESTRIANS_CROSS_BACKWARD_DELTA = 3
+    PEDESTRIANS_CROSS_FORWARD_DELTA = 3
+
+    # straight left right
+    CROSS_BACKWARD_DELTA = 1
+    CROSS_FORWARD_DELTA = 1
+
+    # initialize object with scene
     def __init__(self, scene: Scene):
         self.scene = scene
-        self.agent_finder = AgentFinder(scene)
+        self.finder = AgentFinder(scene)
 
+    # "main function"
     def classify_scene(self) -> list[str]:
         '''Returns third class label names of each frame in the scene'''
 
-        result = []
+        labels = []
 
-        # for each time stamp
+        # make contiguous sections with the same second-level labels
+        sections = []
+
+        prev_second_class = None
+
         for ti in range(SCENE_LENGTH):
             second_class = self.scene.second_class[ti]
 
-            # depending on the second class of this frame, use different functions to classify the frame
-            if second_class == '1.1 InLane': result.append(self.classify_inlane_frame(ti))
-            elif second_class == '2.1 StopAndWait': result.append(self.classify_stop_and_wait_frame(ti))
-            elif second_class == '2.4 GoStraight': result.append(self.classify_go_straight_frame(ti))
-            elif second_class == '2.5 TurnLeft': result.append(self.classify_turn_left_frame(ti))
-            elif second_class == '2.6 TurnRight': result.append(self.classify_turn_right_frame(ti))
-            elif second_class == '2.7 UTurn': result.append(self.classify_uturn_frame(ti))
-            else: result.append(THIRD_CLASS_NAMES_INVALID)
+            # if a new section is introduced, create a new section
+            if second_class != prev_second_class:
+                sections.append((second_class, []))
+                prev_second_class = second_class
+            
+            # append the current timestamp index in the last section
+            sections[-1][1].append(ti)
+
+        # for each section
+        for second_class, tis in sections:
+
+            # depending on the second class of this section, use different functions to classify the frame
+            if second_class == '1.1 InLane': labels += self.classify_inlane_section(tis)
+            elif second_class == '2.1 StopAndWait': labels += self.classify_stop_and_wait_section(tis)
+            elif second_class == '2.4 GoStraight': labels += self.classify_go_straight_section(tis)
+            elif second_class == '2.5 TurnLeft': labels += self.classify_turn_left_section(tis)
+            elif second_class == '2.6 TurnRight': labels += self.classify_turn_right_section(tis)
+            elif second_class == '2.7 UTurn': labels += self.classify_uturn_section(tis)
+            else: labels += [INVALID3] * len(tis)
         
-        return result
+        return labels
 
-    ''' Primary Helpers, returns third class label names '''
+    ''' section classifiers for specific second class labels '''
 
-    def classify_inlane_frame(self, ti):
-        options = {
-            'leadv0': '1.1.5 LeadVehicleStppoed',
-            'leada0': '1.1.1 LeadVehicleConstant',
-            'leada-': '1.1.4 LeadVehicleDecelerating',
-            'leada+': '1.1.6 LeadVehicleAccelerating',
-            'cutout': '1.1.2 LeadVehicleCutOut',
-            'cutin': '1.1.3 VehicleCutInAhead',
-        }
+    # inlane section classifier
+    def classify_inlane_section(self, tis):
+        n = len(tis)
+        fronts = [self.finder.get_front(ti) for ti in tis]
+        labels = [INVALID3] * n
 
-        leading = AgentFinder.find_nearest_agent_on_ego_trajectory(ti)
-        if leading is not None:
-            pass # TODO
+        # for i from 0 -> n
+        i = -1
+        while i+1 < n:
+            i += 1
 
-        
-        return 
-    
-    def classify_stop_and_wait_frame(self, ti):
-        return
-    
-    def classify_go_straight_frame(self, ti):
-        return
-    
-    def classify_turn_left_frame(self, ti):
-        return
-    
-    def classify_turn_right_frame(self, ti):
-        return
-    
-    def classify_uturn_frame(self, ti):
-        return
-    
-    ''' Secondary Helpers '''
-    
-    def simple_leading(self, traj1, traj2) -> bool:
-        return
-    
-    def trajectory_focused_leading(self, traj1, traj2) -> bool:
-        return
-    
-    def orientation_focused_leading(self, traj1, traj2) -> bool:
-        return
-    
-    def before_left_cutin(self, traj1, traj2) -> bool:
-        return
-    
-    def after_left_cutin(self, traj1, traj2) -> bool:
-        return
-    
-    def before_right_cutin(self, traj1, traj2) -> bool:
-        return
-    
-    def after_right_cutin(self, traj1, traj2) -> bool:
-        return
-    
-    def before_left_cutout(self, traj1, traj2) -> bool:
-        return
-    
-    def after_left_cutout(self, traj1, traj2) -> bool:
-        return
-    
-    def before_right_cutout(self, traj1, traj2) -> bool:
-        return
+            front: Agent = fronts[i]
 
-    def after_right_cutout(self, traj1, traj2) -> bool:
-        return
-    
-    def left_turn_leading(self, traj1, traj2) -> bool:
-        return
-    
-    def right_turn_leading(self, traj1, traj2) -> bool:
-        return
-    
-    def left_turn_cutin_before(self, traj1, traj2) -> bool:
-        return
-    
-    def left_turn_cutin_after(self, traj1, traj2) -> bool:
-        return
-    
-    def right_turn_cutin_before(self, traj1, traj2) -> bool:
-        return
-    
-    def right_turn_cutin_after(self, traj1, traj2) -> bool:
-        return
-    
+            # let next front be front if there is no next front, else just let it be next front
+            next_front: Agent = front if i == n-1 else fronts[i+1]
 
-class AgentFinder:
-    def __init__(self, scene: Scene):
-        self.scene = scene
+            # nothing in front and nothing in next front (nothing ahead)
+            if front is None and next_front is None:
+                continue
 
-    def distance_between(agent1, agent2):
-        return np.sqrt((agent1.x - agent2.x) ** 2 + (agent1.y - agent2.y) ** 2)
-    
-    def find_nearest_agent_on_ego_trajectory(self, ti):
-        '''Find the nearest agent on the way of the ego'''
-
-        max_extrapolation = 5
-
-        while ti < max(ti + max_extrapolation, SCENE_LENGTH):
-
-            # get ego at this timestamp
-            ego_anchor = self.scene.trajectories['ego'][ti]
-
-            # return any agent that is extremely close to the current agent
-            for agent in self.scene.snapshot(ti):
-                if agent.id == 'ego':
+            # same thing in front and next front (leading not changing in the next frame)
+            if front is not None and next_front is not None and front.id == next_front.id:
+                # (then the next front is irrelevant)
+                
+                # front has small velocity => stopped
+                if abs(front.vr) < self.SMALL_VELOCITY_THRESHOLD:
+                    labels[i] = INLANE_LEAD_STOPPED
                     continue
-                if agent.is_on_the_face_of(ego_anchor):
-                    return agent
+                
+                ego: Agent = self.finder.get_ego(tis[i])
+
+                # acceleration and deceleration don't actually depend on acceleration value
+                # it instead depends on the difference in velocity between ego and front
+                ego_v = ego.front_velocity_relative_to(ego)
+                front_v = front.front_velocity_relative_to(ego)
+                dv = front_v - ego_v
+
+                # front velocity > ego velocity => accelerating
+                if dv > self.DV_THRESHOLD_FOR_ACCELERATION:
+                    labels[i] = INLANE_LEAD_ACCELERATE
+                    continue
             
-            ti += 1
-        
-        return None
+                # front velocity < ego velocity => decelerating
+                if dv < self.DV_THRESHOLD_FOR_DECELERATION:
+                    labels[i] = INLANE_LEAD_DECELERATE
+                    continue
 
-
-class TrajectoryPatternMatcher:
-    def lead_constant(t1: list[Agent], t2: list[Agent]):
-        '''Old idea, theoretically shouldn't work in some cases, can be removed'''
-
-        if len(t1) != len(t2):
-            return False
-        
-        for i in range(len(t1)):
-            a1 = t1[i]; a2 = t2[i]
-
-            if abs(a1.yaw - a2.yaw) > 20:
-                return False
+                # else (relatively small velocity difference)
+                labels[i] = INLANE_LEAD_CONST
             
-            # move both trajectories to the origin
-            a1 = a1.copy(); a2 = a2.copy()
-            a1.x -= t1[0].x; a1.y -= t1[0].y; a2.x -= t2[0].x; a2.y -= t2[0].y
+            # different thing in front and next front
+            # front or nextfront = none or front.id != nextfront.id
+            else:
+                # no lead -> has lead => cutin
+                if front is None:
+                    cutout = False
+                # has lead -> no lead => cutout
+                elif next_front is None:
+                    cutout = True
+                # lead further after lead change => prev lead cutout, vice versa
+                else:
+                    ego = self.finder.get_ego(tis[i])
+                    curr_dist = front.distance_to(ego)
 
-            if Agent.distance(a1, a2) > 2:
-                return False
+                    next_ego = self.finder.get_ego(tis[i+1])
+                    next_dist = next_front.distance_to(next_ego)
+
+                    cutout = next_dist > curr_dist
+
+                if cutout:
+
+                    # set every label from i-mind to i+maxd to cutout
+                    mind = -self.CUTOUT_BACKWARD_DELTA
+                    maxd = self.CUTOUT_FORWARD_DELTA
+                    for di in range(mind, maxd+1):
+                        ip = i + di # i_prime = i + delta_i
+                        if 0 <= ip < n: # if ip is not out of bounds
+                            labels[ip] = INLANE_CUTOUT
+                    i += maxd
+                
+                else: # cutin
+
+                    # set every label from i-mind to i+maxd to cutin
+                    mind = -self.CUTIN_BACKWARD_DELTA
+                    maxd = self.CUTIN_FORWARD_DELTA
+                    for di in range(mind, maxd+1):
+                        ip = i + di # i_prime = i + delta_i
+                        if 0 <= ip < n: # if ip is not out of bounds
+                            labels[ip] = INLANE_CUTIN
+                    i += maxd
         
-        return True
+        return labels
+
+    # stop and wait section classifier
+    def classify_stop_and_wait_section(self, tis):
+        n = len(tis)
+        fronts = [self.finder.get_front(ti) for ti in tis]
+        labels = [INVALID3] * n
+
+        # for i from 0 -> n
+        i = -1
+        while i+1 < n:
+            i += 1
+
+            front: Agent = fronts[i]
+
+            # nothing in front
+            if front is None:
+                continue
+
+            # pedestrian or bike in front
+            if front.type in [OT_BIKE, OT_PEDESTRIAN]:
+
+                # set everything from i-mind to i-maxd to pedestrians crossing
+                mind = -self.PEDESTRIANS_CROSS_BACKWARD_DELTA
+                maxd = self.PEDESTRIANS_CROSS_FORWARD_DELTA
+                for di in range(mind, maxd+1):
+                    ip = i + di # i_prime = i + delta_i
+                    if 0 <= ip < n: # if ip is not out of bounds
+                        labels[ip] = WAIT_HAS_PEDESTRIANS
+                i += maxd
             
+            # car in front
+            elif front.type == OT_CAR:
+                labels[i] = WAIT_HAS_LEAD
+                
+        return labels
+    
+    # go straight section classifier
+    def classify_go_straight_section(self, tis):
+        n = len(tis)
+        fronts = [self.finder.get_turning_front(ti) for ti in tis]
+        labels = [INVALID3] * n
+
+        # for i from 0 -> n
+        i = -1
+        while i+1 < n:
+            i += 1
+
+            front: Agent = fronts[i]
+            next_front: Agent = front if i == n-1 else fronts[i+1]
+
+            # nothing in front (or nothing in front that is crossing with ego)
+            if front is None and next_front is None:
+                labels[i] = STRAIGHT_NOTHING_AHEAD
+                continue
+
+            # same thing in front
+            if front is not None and next_front is not None and front.id == next_front.id:
+                labels[i] = STRAIGHT_HAS_LEAD
+                continue
+
+            # some different agent in front
+            # TODO?: check if the different thing is leading or crossing?
+            else:
+                mind = -self.CROSS_BACKWARD_DELTA
+                maxd = self.CROSS_BACKWARD_DELTA
+                for di in range(mind, maxd+1):
+                    ip = i + di # i_prime = i + delta_i
+                    if 0 <= ip < n: # if ip is not out of bounds
+                        labels[ip] = STRAIGHT_HAS_CROSS
+                i += maxd
         
+        return labels
+    
+    # turn left section classifier
+    def classify_turn_left_section(self, tis):
+        n = len(tis)
+        fronts = [self.finder.get_turning_front(ti) for ti in tis]
+        labels = [INVALID3] * n
+
+        for i in range(n):
+            front: Agent = fronts[i]
+            next_front: Agent = front if i == n-1 else fronts[i+1]
+
+            # nothing in front (or nothing in front that is crossing with ego)
+            if front is None and next_front is None:
+                labels[i] = LEFT_NOTHING_AHEAD
+                continue
+
+            # same thing in front
+            if front is not None and next_front is not None and front.id == next_front.id:
+                labels[i] = LEFT_HAS_LEAD
+                continue
+            
+            # different thing in front
+            # TODO?: check if the different thing is leading or crossing?
+            else:
+                mind = -self.CROSS_BACKWARD_DELTA
+                maxd = self.CROSS_BACKWARD_DELTA
+                for di in range(mind, maxd+1):
+                    ip = i + di # i_prime = i + delta_i
+                    if 0 <= ip < n: # if ip is not out of bounds
+                        labels[ip] = LEFT_HAS_CROSS
+                i += maxd
+        
+        return labels
+    
+    # turn right section classifier
+    def classify_turn_right_section(self, tis):
+        n = len(tis)
+        fronts = [self.finder.get_turning_front(ti) for ti in tis]
+        labels = [INVALID3] * n
+
+        for i in range(n):
+            front: Agent = fronts[i]
+            next_front: Agent = front if i == n-1 else fronts[i+1]
+
+            # nothing in front (or nothing in front that is crossing with ego)
+            if front is None and next_front is None:
+                labels[i] = RIGHT_NOTHING_AHEAD
+                continue
+
+            # same thing in front
+            if front is not None and next_front is not None and front.id == next_front.id:
+                labels[i] = RIGHT_HAS_LEAD
+                continue
+            
+            # different thing in front
+            # TODO?: check if the different thing is leading or crossing?
+            else:
+                mind = -self.CROSS_BACKWARD_DELTA
+                maxd = self.CROSS_BACKWARD_DELTA
+                for di in range(mind, maxd+1):
+                    ip = i + di # i_prime = i + delta_i
+                    if 0 <= ip < n: # if ip is not out of bounds
+                        labels[ip] = RIGHT_HAS_CROSS
+                i += maxd
+        
+        return labels
+    
+    # uturn section classifier
+    def classify_uturn_section(self, tis):
+        n = len(tis)
+        labels = [UTURN_NOTHING_AHEAD] * n
+        return labels
+    

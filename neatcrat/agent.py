@@ -46,44 +46,71 @@ class Agent:
     def copy(self):
         return Agent(self.id, self.type, self.x, self.y, self.vx, self.vy, self.ax, self.ay, self.yaw, self.dyaw, self.implied)
 
-    def distance(agent1, agent2):
-        return np.sqrt((agent1.x-agent2.x) ** 2 + (agent1.y-agent2.y) ** 2)
+    def distance_to(self, agent):
+        dx = self.x - agent.x
+        dy = self.y - agent.y
+        distance = np.sqrt(dx ** 2 + dy ** 2)
+        return distance
     
+    def polar_coords_relative_to(self, agent):
+        dx = self.x - agent.x
+        dy = self.y - agent.y
+        distance, angle = Coords.polar(dx, dy)
+        angle = Angle.normalize(angle - agent.yaw)
+        return distance, angle
+
     '''Abstract Relations'''
 
     def front_distance_relative_to(self, agent):
         '''Front is positive and back is negative'''
-        dx = self.x - agent.x
-        dy = self.y - agent.y
-        distance, angle = Coords.polar(dx, dy)
-        angle = Angle.normalize(angle - agent.yaw)
+        distance, angle = self.polar_coords_relative_to(agent)
         return distance * Angle.cos(angle)
     
     def side_distance_relative_to(self, agent):
         '''Right is positive and left is negative'''
-        dx = self.x - agent.x
-        dy = self.y - agent.y
-        distance, angle = Coords.polar(dx, dy)
-        angle = Angle.normalize(angle - agent.yaw)
+        distance, angle = self.polar_coords_relative_to(agent)
         return - distance * Angle.sin(angle)
     
-    def is_on_the_face_of(self, agent):
-        front_distance = self.front_distance_relative_to(agent)
-        side_distance = self.side_distance_relative_to(agent)
-
-        return 0 < front_distance < 2.5 and abs(side_distance) < 1.5
+    def front_and_side_distance_relative_to(self, agent):
+        '''Front, right is positive; back, left is negative'''
+        distance, angle = self.polar_coords_relative_to(agent)
+        return distance * Angle.cos(angle), - distance * Angle.sin(angle)
     
-    def is_leading(self, agent):
-        front_distance = self.front_distance_relative_to(agent)
-        side_distance = self.side_distance_relative_to(agent)
+    def front_velocity_relative_to(self, agent):
+        '''Front is positive and back is negative'''
+        angle = Angle.normalize(self.vtheta - agent.yaw)
+        return self.vr * Angle.cos(angle)
+    
+    def front_acceleration_relative_to(self, agent):
+        '''Front is positive and back is negative'''
+        angle = Angle.normalize(self.atheta - agent.yaw)
+        return self.ar * Angle.cos(angle)
+    
+    def is_very_near(self, agent):
+        if self.distance_to(agent) > 4: # prune irrelevant agents
+            return False
+        
+        front_distance, side_distance = self.front_and_side_distance_relative_to(agent)
 
-        return 0 < front_distance < 5 and abs(side_distance) < 2
+        return abs(front_distance) < 3.5 and abs(side_distance) < 1.5
+    
+    # def is_leading(self, agent):
+    #     front_distance, side_distance = self.front_and_side_distance_relative_to(agent)
+
+    #     return 0 < front_distance < 5 and abs(side_distance) < 2
     
     def is_in_front_of(self, agent):
-        front_distance = self.front_distance_relative_to(agent)
-        side_distance = self.side_distance_relative_to(agent)
+        front_distance, side_distance = self.front_and_side_distance_relative_to(agent)
 
         return front_distance > side_distance ** 2
     
+    def is_directly_in_front_of(self, agent):
+        front_distance, side_distance = self.front_and_side_distance_relative_to(agent)
+
+        return 0 < front_distance < 15 and front_distance > side_distance ** 2 * 2
+    
     def __str__(self):
-        return f"[ Agent({self.code}) at ({self.x}, {self.y}) ]"
+        return f"[ Agent({self.code}) at ({self.x:.2f}, {self.y:.2f}) ]"
+    
+    def __repr__(self):
+        return self.__str__()

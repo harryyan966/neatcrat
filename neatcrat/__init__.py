@@ -3,7 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from .agent import Agent
-from .classifier import SceneClassifier, AgentFinder, TrajectoryPatternMatcher
+from .agentfinder import AgentFinder
+from .classifier import SceneClassifier
 from .constants import *
 from .data import Data
 from .debug import Debug

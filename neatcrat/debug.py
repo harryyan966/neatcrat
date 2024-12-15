@@ -2,7 +2,7 @@
 To help visualization
 '''
 
-from .constants import THIRD_CLASS_NAMES_INVALID
+from .constants import INVALID3
 from .scene import Scene
 from .trajectory import Trajectory
 from .agent import Agent
@@ -21,7 +21,7 @@ class Debug:
             if third_class != curr_label:
 
                 # append previous label if it's valid and there IS a previous label
-                if curr_label != THIRD_CLASS_NAMES_INVALID and ti != 0:
+                if curr_label != INVALID3 and ti != 0:
                     intervals.append((curr_label, start, ti))
 
                 # start to record the current label
@@ -29,7 +29,7 @@ class Debug:
                 curr_label = third_class
 
         # append last label if it's valid
-        if curr_label != THIRD_CLASS_NAMES_INVALID:
+        if curr_label != INVALID3:
             intervals.append((curr_label, start, len(scene.third_class)))
 
         # print the intervals

@@ -12,11 +12,13 @@ this is a less messy and more readable version of "godcrat", with better plots
 
 待提升（priority从高到低，提出时间从早到晚）
 1. **左右转crossing更合理的判断：去掉leading消失的情况，去掉“crossing”车辆静止不动的情况，去掉获得leading的情况**
-2. **cutin cutout进行时的具体判断标准，当前默认前车变化前后固定几帧为cutin cutout**
-3. 考虑周围车辆的自车轨迹预测，可以帮助约后十帧左右的预测
-4. 找到前车后用它的轨迹协助预测，思考具体考虑方法
-5. 实现中间段的任意车轨迹预测并融合进每一个snapshot（in other words 每一帧, 每一个frame），但是可能会对结果产生不确定的影响
-6. 要不要设定leading必须是OBJECT_TYPE_VEHICLE
+2. **用egoanchor-agent-nextegoanchor角度大小判断是否在ego traj里，而不是用过front and cross dist**
+3. **cutin cutout进行时的具体判断标准，当前默认前车变化前后固定几帧为cutin cutout**
+
+1. 考虑周围车辆的自车轨迹预测，可以帮助约后十帧左右的预测
+2. 找到前车后用它的轨迹协助预测，思考具体考虑方法
+3. 实现中间段的任意车轨迹预测并融合进每一个snapshot（in other words 每一帧, 每一个frame），但是可能会对结果产生不确定的影响
+4. 要不要设定leading必须是OBJECT_TYPE_VEHICLE
 
 plot.py介绍：
 1. 创建plot：`p = Plot(xmin, xmax, ymin, ymax, size); `（一般设定`p = Plot(-50, 50, -20, 180, 4); `，改动ymax和size最频繁）
